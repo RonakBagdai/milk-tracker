@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+<meta name="apple-mobile-web-app-title" content="Milk Tracker"/>
+<meta name="theme-color" content="#0369a1"/>
+<title>🥛 Milk Tracker</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: -apple-system, 'Segoe UI', sans-serif;
+    background: #f0f9ff;
+    min-height: 100vh;
+    padding-bottom: 40px;
+  }
+
+  /* Header */
+  .header {
+    background: linear-gradient(135deg, #0369a1, #0284c7);
+    color: white;
+    padding: 20px 16px 16px;
+    text-align: center;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 12px rgba(3,105,161,0.3);
+  }
+  .header h1 { font-size: 20px; font-weight: 800; letter-spacing: -0.5px; }
+  .header p { font-size: 12px; opacity: 0.8; margin-top: 2px; }
+
+  /* Controls */
+  .controls {
+    background: white;
+    margin: 12px;
+    border-radius: 16px;
+    padding: 14px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .ctrl-group { flex: 1 1 100px; }
+  .ctrl-group label {
+    display: block;
+    font-size: 10px;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    margin-bottom: 5px;
+  }
+  .ctrl-group select,
+  .ctrl-group input[type="number"] {
+    width: 100%;
+    padding: 9px 10px;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 10px;
+    font-size: 14px;
+    color: #0f172a;
+    background: #f8fafc;
+    outline: none;
+    appearance: none;
+    -webkit-appearance: none;
+  }
+  .ctrl-group select:focus,
+  .ctrl-group input:focus {
+    border-color: #0369a1;
+    background: white;
+  }
+
+  /* Summary */
+  .summary {
+    display: flex;
+    gap: 8px;
+    margin: 0 12px 12px;
+  }
+  .card {
+    flex: 1;
+    background: white;
+    border-radius: 14px;
+    padding: 12px 8px;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+  .card-icon { font-size: 22px; line-height: 1; }
+  .card-val { font-size: 17px; font-weight: 800; margin-top: 3px; line-height: 1.1; }
+  .card-label { font-size: 10px; color: #94a3b8; margin-top: 2px; }
+  .card.blue .card-val { color: #0369a1; }
+  .card.green .card-val { color: #15803d; }
+  .card.purple .card-val { color: #7c3aed; }
+
+  /* Table */
+  .table-wrap {
+    background: white;
+    margin: 0 12px;
+    border-radius: 16px;
+    padding: 14px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+    overflow: hidden;
+  }
+  .table-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #0369a1;
+    margin-bottom: 10px;
+  }
+  table { width: 100%; border-collapse: collapse; }
+  thead tr { background: #f0f9ff; }
+  th {
+    padding: 8px 6px;
+    font-size: 10px;
+    font-weight: 700;
+    color: #0369a1;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    text-align: left;
+  }
+  td { padding: 5px 6px; vertical-align: middle; border-bottom: 1px solid #f1f5f9; }
+  tr.today { background: #fef9c3; }
+  tr.weekend td.dayname { color: #9333ea; }
+  .dayname { font-size: 12px; font-weight: 600; color: #475569; }
+  .daynum { font-size: 13px; font-weight: 700; color: #0f172a; }
+  .today-badge {
+    font-size: 9px;
+    background: #fbbf24;
+    color: #78350f;
+    border-radius: 4px;
+    padding: 1px 4px;
+    margin-left: 4px;
+    font-weight: 700;
+  }
+  .qty-input {
+    width: 72px;
+    padding: 6px 8px;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 14px;
+    color: #0c4a6e;
+    background: white;
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  .qty-input:focus { border-color: #0369a1; background: #f0f9ff; }
+  .qty-input.filled { border-color: #0ea5e9; background: #f0f9ff; font-weight: 700; }
+  .cost-cell { font-size: 13px; font-weight: 600; color: #15803d; }
+  .cost-cell.empty { color: #cbd5e1; }
+  tfoot tr { background: #f0fdf4; border-top: 2px solid #bbf7d0; }
+  tfoot td { font-weight: 800; padding: 9px 6px; }
+  .total-label { font-size: 12px; color: #15803d; }
+  .total-litres { font-size: 14px; color: #0369a1; }
+  .total-cost { font-size: 14px; color: #15803d; }
+
+  /* Save toast */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: #0f172a;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 100px;
+    font-size: 13px;
+    font-weight: 600;
+    transition: transform 0.3s ease;
+    z-index: 200;
+    white-space: nowrap;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  .hint { text-align: center; color: #94a3b8; font-size: 11px; margin-top: 12px; padding: 0 12px; }
+
+  /* Install banner */
+  .install-banner {
+    background: #fef3c7;
+    border: 1px solid #fcd34d;
+    border-radius: 12px;
+    margin: 0 12px 12px;
+    padding: 10px 14px;
+    font-size: 12px;
+    color: #92400e;
+    display: none;
+  }
+  .install-banner strong { display: block; font-size: 13px; margin-bottom: 2px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🥛 Milk Tracker</h1>
+  <p>Daily milk log &amp; monthly cost calculator</p>
+</div>
+
+<div class="install-banner" id="installBanner">
+  <strong>📱 Add to Home Screen</strong>
+  Tap Share → "Add to Home Screen" to use like an app!
+</div>
+
+<div class="controls">
+  <div class="ctrl-group">
+    <label>Month</label>
+    <select id="monthSel"></select>
+  </div>
+  <div class="ctrl-group">
+    <label>Year</label>
+    <select id="yearSel"></select>
+  </div>
+  <div class="ctrl-group">
+    <label>Price / Litre (₹)</label>
+    <input type="number" id="priceInput" value="60" min="1" step="0.5"/>
+  </div>
+</div>
+
+<div class="summary">
+  <div class="card blue">
+    <div class="card-icon">🧮</div>
+    <div class="card-val" id="totalLitres">0.00 L</div>
+    <div class="card-label">Total Litres</div>
+  </div>
+  <div class="card green">
+    <div class="card-icon">💰</div>
+    <div class="card-val" id="totalCost">₹0.00</div>
+    <div class="card-label">Total Cost</div>
+  </div>
+  <div class="card purple">
+    <div class="card-icon">📊</div>
+    <div class="card-val" id="avgDay">— L</div>
+    <div class="card-label">Avg / Day</div>
+  </div>
+</div>
+
+<div class="table-wrap">
+  <div class="table-title" id="tableTitle">— Daily Entry</div>
+  <table>
+    <thead>
+      <tr>
+        <th>Day</th>
+        <th>Date</th>
+        <th>Litres</th>
+        <th>Cost (₹)</th>
+      </tr>
+    </thead>
+    <tbody id="tableBody"></tbody>
+    <tfoot>
+      <tr>
+        <td colspan="2" class="total-label" id="totalLabel">TOTAL</td>
+        <td class="total-litres" id="footLitres">0.00 L</td>
+        <td class="total-cost" id="footCost">₹0.00</td>
+      </tr>
+    </tfoot>
+  </table>
+</div>
+
+<p class="hint">Enter litres in decimals — 0.5 for half litre · Data saves automatically 💾</p>
+
+<div class="toast" id="toast">✅ Saved!</div>
+
+<script>
+const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const DAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+
+const today = new Date();
+let curMonth = today.getMonth();
+let curYear = today.getFullYear();
+let price = 60;
+
+// Populate month/year selects
+const monthSel = document.getElementById('monthSel');
+const yearSel = document.getElementById('yearSel');
+MONTHS.forEach((m, i) => {
+  const o = document.createElement('option');
+  o.value = i; o.textContent = m;
+  if (i === curMonth) o.selected = true;
+  monthSel.appendChild(o);
+});
+for (let y = today.getFullYear() - 2; y <= today.getFullYear() + 1; y++) {
+  const o = document.createElement('option');
+  o.value = y; o.textContent = y;
+  if (y === curYear) o.selected = true;
+  yearSel.appendChild(o);
+}
+
+// LocalStorage helpers
+function storageKey(y, m) { return `milk_${y}_${m}`; }
+function loadData(y, m) {
+  try { return JSON.parse(localStorage.getItem(storageKey(y, m))) || {}; }
+  catch(e) { return {}; }
+}
+function saveData(y, m, data) {
+  localStorage.setItem(storageKey(y, m), JSON.stringify(data));
+  showToast();
+}
+
+function getDaysInMonth(m, y) { return new Date(y, m + 1, 0).getDate(); }
+
+let saveTimer = null;
+function showToast() {
+  const t = document.getElementById('toast');
+  t.classList.add('show');
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => t.classList.remove('show'), 1500);
+}
+
+function renderTable() {
+  const days = getDaysInMonth(curMonth, curYear);
+  const data = loadData(curYear, curMonth);
+  price = parseFloat(document.getElementById('priceInput').value) || 0;
+
+  document.getElementById('tableTitle').textContent = `${MONTHS[curMonth]} ${curYear} — Daily Entry`;
+
+  const tbody = document.getElementById('tableBody');
+  tbody.innerHTML = '';
+
+  let totalL = 0, filledDays = 0;
+
+  for (let d = 1; d <= days; d++) {
+    const dateObj = new Date(curYear, curMonth, d);
+    const dayName = DAYS[dateObj.getDay()];
+    const isToday = d === today.getDate() && curMonth === today.getMonth() && curYear === today.getFullYear();
+    const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
+    const qty = data[d];
+    const hasQty = qty !== undefined && qty !== '' && !isNaN(qty);
+    const cost = hasQty ? (parseFloat(qty) * price).toFixed(2) : null;
+
+    if (hasQty) { totalL += parseFloat(qty); filledDays++; }
+
+    const tr = document.createElement('tr');
+    if (isToday) tr.classList.add('today');
+    if (isWeekend) tr.classList.add('weekend');
+
+    tr.innerHTML = `
+      <td class="dayname">${dayName}${isToday ? '<span class="today-badge">Today</span>' : ''}</td>
+      <td class="daynum">${d}</td>
+      <td><input type="number" class="qty-input${hasQty ? ' filled' : ''}" min="0" step="0.25"
+        placeholder="0" value="${hasQty ? qty : ''}" data-day="${d}"/></td>
+      <td class="${cost ? 'cost-cell' : 'cost-cell empty'}" id="cost-${d}">${cost ? '₹' + cost : '—'}</td>
+    `;
+    tbody.appendChild(tr);
+  }
+
+  // Bind inputs
+  tbody.querySelectorAll('.qty-input').forEach(inp => {
+    inp.addEventListener('input', function() {
+      const day = parseInt(this.dataset.day);
+      const val = this.value;
+      const data = loadData(curYear, curMonth);
+      if (val === '' || isNaN(parseFloat(val))) {
+        delete data[day];
+        this.classList.remove('filled');
+        document.getElementById(`cost-${day}`).textContent = '—';
+        document.getElementById(`cost-${day}`).className = 'cost-cell empty';
+      } else {
+        data[day] = parseFloat(val);
+        this.classList.add('filled');
+        const c = (parseFloat(val) * price).toFixed(2);
+        document.getElementById(`cost-${day}`).textContent = '₹' + c;
+        document.getElementById(`cost-${day}`).className = 'cost-cell';
+      }
+      saveData(curYear, curMonth, data);
+      updateSummary();
+    });
+  });
+
+  updateSummaryWith(totalL, filledDays);
+}
+
+function updateSummary() {
+  const data = loadData(curYear, curMonth);
+  const days = getDaysInMonth(curMonth, curYear);
+  let totalL = 0, filled = 0;
+  for (let d = 1; d <= days; d++) {
+    const v = data[d];
+    if (v !== undefined && v !== '' && !isNaN(v)) { totalL += parseFloat(v); filled++; }
+  }
+  updateSummaryWith(totalL, filled);
+}
+
+function updateSummaryWith(totalL, filledDays) {
+  price = parseFloat(document.getElementById('priceInput').value) || 0;
+  const totalCost = totalL * price;
+  const avg = filledDays > 0 ? (totalL / filledDays).toFixed(2) : '—';
+  document.getElementById('totalLitres').textContent = totalL.toFixed(2) + ' L';
+  document.getElementById('totalCost').textContent = '₹' + totalCost.toFixed(2);
+  document.getElementById('avgDay').textContent = avg === '—' ? '— L' : avg + ' L';
+  document.getElementById('footLitres').textContent = totalL.toFixed(2) + ' L';
+  document.getElementById('footCost').textContent = '₹' + totalCost.toFixed(2);
+  document.getElementById('totalLabel').textContent = `TOTAL (${filledDays} days)`;
+}
+
+// Events
+monthSel.addEventListener('change', () => { curMonth = parseInt(monthSel.value); renderTable(); });
+yearSel.addEventListener('change', () => { curYear = parseInt(yearSel.value); renderTable(); });
+document.getElementById('priceInput').addEventListener('input', () => renderTable());
+
+// Show install banner on iOS
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+if (isIOS && !isStandalone) {
+  document.getElementById('installBanner').style.display = 'block';
+}
+
+// Init
+renderTable();
+</script>
+</body>
+</html>
