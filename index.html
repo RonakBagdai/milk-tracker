@@ -14,8 +14,7 @@
     font-family: -apple-system, 'Segoe UI', sans-serif;
     background: #f0f9ff;
     min-height: 100vh;
-    /* Increased bottom padding to ensure the last table row isn't hidden behind the fixed footer */
-    padding-bottom: 120px; 
+    padding-bottom: 40px;
   }
 
   /* Header */
@@ -98,10 +97,10 @@
     background: white;
     margin: 0 12px;
     border-radius: 16px;
-    padding: 14px;
+    padding: 14px 14px 0 14px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.07);
-    /* Set back to hidden to keep the corners rounded */
-    overflow: hidden; 
+    /* Set to visible so the sticky footer works correctly relative to the screen */
+    overflow: visible; 
   }
   
   .table-header {
@@ -177,49 +176,55 @@
   .qty-input:focus { border-color: #0369a1; background: #f0f9ff; }
   .qty-input.filled { border-color: #0ea5e9; background: #f0f9ff; font-weight: 700; }
   
-  /* NEW: Fixed Footer */
-  .fixed-footer {
-    position: fixed;
+  /* CORRECTED: Sticky Footer embedded in table */
+  tfoot {
+    position: -webkit-sticky;
+    position: sticky;
     bottom: 0;
-    left: 0;
-    width: 100%;
-    background: white;
-    box-shadow: 0 -4px 15px rgba(0,0,0,0.08);
-    z-index: 200;
-    padding-bottom: env(safe-area-inset-bottom); /* Handles iPhone home bar */
+    z-index: 100;
   }
-
-  /* Restyled the totals to fit the new fixed container */
-  .fixed-footer-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
   
-  .sub-total { background: #f8fafc; border-top: 2px solid #e2e8f0; }
-  .sub-total td { font-weight: 700; padding: 10px 4px; text-align: center; }
-  .sub-label { color: #64748b; font-size: 10px; text-transform: uppercase; }
+  /* Solid backgrounds so scrolling rows hide cleanly behind the sticky footer */
+  .sub-total td { background: #f8fafc; border-top: 2px solid #cbd5e1; }
+  .sub-total td { font-weight: 700; padding: 10px 4px; }
+  .sub-label { color: #64748b; font-size: 10px; text-transform: uppercase; text-align: center; }
   .sub-val { color: #0369a1; font-size: 14px; }
 
-  .grand-total { background: #f0fdf4; border-top: 2px solid #bbf7d0; }
-  .grand-total td { font-weight: 800; padding: 12px 6px; }
-  .total-label { font-size: 12px; color: #15803d; text-align: left; padding-left: 14px; }
-  .total-litres { font-size: 14px; color: #0369a1; text-align: center; }
-  .total-cost { font-size: 14px; color: #15803d; text-align: right; padding-right: 14px; }
+  .grand-total td { background: #f0fdf4; border-top: 2px solid #bbf7d0; font-weight: 800; padding: 12px 6px; }
+  /* Round the bottom corners of the footer to match the wrapper container */
+  .grand-total td:first-child { border-bottom-left-radius: 14px; }
+  .grand-total td:last-child { border-bottom-right-radius: 14px; }
+  
+  .total-label { font-size: 12px; color: #15803d; text-align: left; padding-left: 10px; }
+  .total-litres { font-size: 14px; color: #0369a1; }
+  .total-cost { font-size: 14px; color: #15803d; text-align: right; padding-right: 10px; }
 
-  /* Save toast */
+  /* CORRECTED: Foolproof Toast Notification */
   .toast {
     position: fixed;
-    bottom: 100px; /* Adjusted to sit above the fixed footer */
+    bottom: 110px; 
     left: 50%;
-    transform: translateX(-50%) translateY(120px);
-    background: #0f172a;
+    transform: translateX(-50%) scale(0.9);
+    opacity: 0; /* Fully invisible */
+    visibility: hidden; /* Cannot be interacted with */
+    background: #1e293b;
     color: white;
-    padding: 10px 20px;
+    padding: 10px 24px;
     border-radius: 100px;
     font-size: 13px;
-    font-weight: 600;
-    transition: transform 0.3s ease;
-    z-index: 300;
+    font-weight: 700;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 9999;
     white-space: nowrap;
   }
-  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) scale(1);
+  }
+
+  .hint { text-align: center; color: #94a3b8; font-size: 11px; margin-top: 12px; padding: 0 12px; }
 </style>
 </head>
 <body>
@@ -277,24 +282,23 @@
       </tr>
     </thead>
     <tbody id="tableBody"></tbody>
+    <tfoot>
+      <tr class="sub-total">
+        <td class="sub-label">1-16 Total</td>
+        <td class="sub-val col-divider" id="leftTotal">0.00 L</td>
+        <td class="sub-label">17-31 Total</td>
+        <td class="sub-val" id="rightTotal">0.00 L</td>
+      </tr>
+      <tr class="grand-total">
+        <td colspan="2" class="total-label">GRAND TOTAL</td>
+        <td class="total-litres" id="footLitres">0.00 L</td>
+        <td class="total-cost" id="footCost">₹0.00</td>
+      </tr>
+    </tfoot>
   </table>
 </div>
 
-<div class="fixed-footer">
-  <table class="fixed-footer-table">
-    <tr class="sub-total">
-      <td class="sub-label">1-16 Total</td>
-      <td class="sub-val col-divider" id="leftTotal">0.00 L</td>
-      <td class="sub-label">17-31 Total</td>
-      <td class="sub-val" id="rightTotal">0.00 L</td>
-    </tr>
-    <tr class="grand-total">
-      <td colspan="2" class="total-label">GRAND TOTAL</td>
-      <td class="total-litres" id="footLitres">0.00 L</td>
-      <td class="total-cost" id="footCost">₹0.00</td>
-    </tr>
-  </table>
-</div>
+<p class="hint">Enter litres in decimals — 0.5 for half litre · Data saves automatically 💾</p>
 
 <div class="toast" id="toast">✅ Saved!</div>
 
