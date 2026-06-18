@@ -102,7 +102,6 @@
     overflow: hidden;
   }
   
-  /* New Table Header styles */
   .table-header {
     display: flex;
     justify-content: space-between;
@@ -123,8 +122,16 @@
     font-size: 11px;
     font-weight: 700;
     cursor: pointer;
+    transition: all 0.2s ease;
   }
   .clear-btn:active { background: #fca5a5; }
+  
+  /* New class for the double-tap to confirm */
+  .clear-btn.confirming {
+    background: #ef4444;
+    color: white;
+    border-color: #dc2626;
+  }
 
   table { width: 100%; border-collapse: collapse; table-layout: fixed; }
   thead tr { background: #f0f9ff; }
@@ -165,11 +172,17 @@
   .qty-input:focus { border-color: #0369a1; background: #f0f9ff; }
   .qty-input.filled { border-color: #0ea5e9; background: #f0f9ff; font-weight: 700; }
   
-  tfoot tr { background: #f0fdf4; border-top: 2px solid #bbf7d0; }
-  tfoot td { font-weight: 800; padding: 12px 6px; }
-  .total-label { font-size: 12px; color: #15803d; text-align: left; }
+  /* Footer Totals */
+  .sub-total { background: #f8fafc; border-top: 2px solid #e2e8f0; }
+  .sub-total td { font-weight: 700; padding: 10px 4px; }
+  .sub-label { color: #64748b; font-size: 10px; text-transform: uppercase; text-align: center; }
+  .sub-val { color: #0369a1; font-size: 14px; }
+
+  .grand-total { background: #f0fdf4; border-top: 2px solid #bbf7d0; }
+  .grand-total td { font-weight: 800; padding: 12px 6px; }
+  .total-label { font-size: 12px; color: #15803d; text-align: left; padding-left: 10px; }
   .total-litres { font-size: 14px; color: #0369a1; }
-  .total-cost { font-size: 14px; color: #15803d; text-align: right; }
+  .total-cost { font-size: 14px; color: #15803d; text-align: right; padding-right: 10px; }
 
   /* Save toast */
   .toast {
@@ -248,8 +261,14 @@
     </thead>
     <tbody id="tableBody"></tbody>
     <tfoot>
-      <tr>
-        <td colspan="2" class="total-label" id="totalLabel">TOTAL</td>
+      <tr class="sub-total">
+        <td class="sub-label">1-16 Total</td>
+        <td class="sub-val col-divider" id="leftTotal">0.00 L</td>
+        <td class="sub-label">17-31 Total</td>
+        <td class="sub-val" id="rightTotal">0.00 L</td>
+      </tr>
+      <tr class="grand-total">
+        <td colspan="2" class="total-label">GRAND TOTAL</td>
         <td class="total-litres" id="footLitres">0.00 L</td>
         <td class="total-cost" id="footCost">₹0.00</td>
       </tr>
@@ -267,7 +286,12 @@ const MONTHS = ["January","February","March","April","May","June","July","August
 const today = new Date();
 let curMonth = today.getMonth();
 let curYear = today.getFullYear();
-let price = 60;
+
+// Load saved price from local storage before rendering
+const savedPrice = localStorage.getItem('milk_price');
+if (savedPrice) {
+  document.getElementById('priceInput').value = savedPrice;
+}
 
 // Populate month/year selects
 const monthSel = document.getElementById('monthSel');
@@ -301,7 +325,7 @@ function getDaysInMonth(m, y) { return new Date(y, m + 1, 0).getDate(); }
 let saveTimer = null;
 function showToast(msg = '✅ Saved!') {
   const t = document.getElementById('toast');
-  t.textContent = msg; // Update dynamic message
+  t.textContent = msg; 
   t.classList.add('show');
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => t.classList.remove('show'), 1500);
@@ -310,20 +334,17 @@ function showToast(msg = '✅ Saved!') {
 function renderTable() {
   const days = getDaysInMonth(curMonth, curYear);
   const data = loadData(curYear, curMonth);
-  price = parseFloat(document.getElementById('priceInput').value) || 0;
 
   document.getElementById('tableTitle').textContent = `${MONTHS[curMonth]} ${curYear}`;
 
   const tbody = document.getElementById('tableBody');
   tbody.innerHTML = '';
 
-  let totalL = 0, filledDays = 0;
+  let totalL = 0, filledDays = 0, leftL = 0, rightL = 0;
 
-  // Loop exactly 16 times for the left column (1-16)
   for (let i = 1; i <= 16; i++) {
     const tr = document.createElement('tr');
     
-    // Calculate dates for left and right columns
     const leftDate = i;
     const rightDate = i + 16;
 
@@ -332,7 +353,13 @@ function renderTable() {
     if (leftDate <= days) {
       const leftQty = data[leftDate];
       const leftHasQty = leftQty !== undefined && leftQty !== '' && !isNaN(leftQty);
-      if (leftHasQty) { totalL += parseFloat(leftQty); filledDays++; }
+      
+      if (leftHasQty) { 
+        const val = parseFloat(leftQty);
+        totalL += val; 
+        leftL += val;
+        filledDays++; 
+      }
       
       const isTodayLeft = leftDate === today.getDate() && curMonth === today.getMonth() && curYear === today.getFullYear();
       
@@ -352,7 +379,13 @@ function renderTable() {
     if (rightDate <= days) {
       const rightQty = data[rightDate];
       const rightHasQty = rightQty !== undefined && rightQty !== '' && !isNaN(rightQty);
-      if (rightHasQty) { totalL += parseFloat(rightQty); filledDays++; }
+      
+      if (rightHasQty) { 
+        const val = parseFloat(rightQty);
+        totalL += val; 
+        rightL += val;
+        filledDays++; 
+      }
       
       const isTodayRight = rightDate === today.getDate() && curMonth === today.getMonth() && curYear === today.getFullYear();
 
@@ -371,7 +404,6 @@ function renderTable() {
     tbody.appendChild(tr);
   }
 
-  // Bind inputs
   tbody.querySelectorAll('.qty-input').forEach(inp => {
     inp.addEventListener('input', function() {
       const day = parseInt(this.dataset.day);
@@ -389,48 +421,81 @@ function renderTable() {
     });
   });
 
-  updateSummaryWith(totalL, filledDays);
+  updateSummaryWith(totalL, filledDays, leftL, rightL);
 }
 
 function updateSummary() {
   const data = loadData(curYear, curMonth);
   const days = getDaysInMonth(curMonth, curYear);
-  let totalL = 0, filled = 0;
+  let totalL = 0, filled = 0, leftL = 0, rightL = 0;
+  
   for (let d = 1; d <= days; d++) {
     const v = data[d];
-    if (v !== undefined && v !== '' && !isNaN(v)) { totalL += parseFloat(v); filled++; }
+    if (v !== undefined && v !== '' && !isNaN(v)) { 
+      const val = parseFloat(v);
+      totalL += val; 
+      filled++; 
+      if (d <= 16) {
+        leftL += val;
+      } else {
+        rightL += val;
+      }
+    }
   }
-  updateSummaryWith(totalL, filled);
+  updateSummaryWith(totalL, filled, leftL, rightL);
 }
 
-function updateSummaryWith(totalL, filledDays) {
-  price = parseFloat(document.getElementById('priceInput').value) || 0;
-  const totalCost = totalL * price;
+function updateSummaryWith(totalL, filledDays, leftL, rightL) {
+  let currentPrice = parseFloat(document.getElementById('priceInput').value) || 0;
+  const totalCost = totalL * currentPrice;
   const avg = filledDays > 0 ? (totalL / filledDays).toFixed(2) : '—';
   
   document.getElementById('totalLitres').textContent = totalL.toFixed(2) + ' L';
   document.getElementById('totalCost').textContent = '₹' + totalCost.toFixed(2);
   document.getElementById('avgDay').textContent = avg === '—' ? '— L' : avg + ' L';
   
+  document.getElementById('leftTotal').textContent = leftL.toFixed(2) + ' L';
+  document.getElementById('rightTotal').textContent = rightL.toFixed(2) + ' L';
+  
   document.getElementById('footLitres').textContent = totalL.toFixed(2) + ' L';
   document.getElementById('footCost').textContent = '₹' + totalCost.toFixed(2);
-  document.getElementById('totalLabel').textContent = `TOTAL`;
 }
 
-// Clear Data Event
-document.getElementById('clearBtn').addEventListener('click', () => {
-  const monthName = MONTHS[curMonth];
-  if (confirm(`Are you sure you want to clear all data for ${monthName} ${curYear}?`)) {
+// Anti-Lag Clear Data Event (Double Tap to confirm)
+let confirmTimeout;
+document.getElementById('clearBtn').addEventListener('click', function() {
+  if (this.classList.contains('confirming')) {
+    // If already confirming, delete the data
     localStorage.removeItem(storageKey(curYear, curMonth));
-    renderTable(); // Re-render table completely empty
+    renderTable(); 
     showToast('🗑️ Month Cleared!');
+    
+    // Reset button
+    this.textContent = 'Clear Month';
+    this.classList.remove('confirming');
+    clearTimeout(confirmTimeout);
+  } else {
+    // First tap: ask for confirmation
+    this.textContent = 'Sure? Tap again';
+    this.classList.add('confirming');
+    
+    // Reset back to normal if they don't tap again within 3 seconds
+    confirmTimeout = setTimeout(() => {
+      this.textContent = 'Clear Month';
+      this.classList.remove('confirming');
+    }, 3000);
   }
 });
 
 // Events
 monthSel.addEventListener('change', () => { curMonth = parseInt(monthSel.value); renderTable(); });
 yearSel.addEventListener('change', () => { curYear = parseInt(yearSel.value); renderTable(); });
-document.getElementById('priceInput').addEventListener('input', () => renderTable());
+
+// Save Price when it changes
+document.getElementById('priceInput').addEventListener('input', function() {
+  localStorage.setItem('milk_price', this.value);
+  renderTable();
+});
 
 // Init
 renderTable();
