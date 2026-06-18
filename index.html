@@ -14,7 +14,8 @@
     font-family: -apple-system, 'Segoe UI', sans-serif;
     background: #f0f9ff;
     min-height: 100vh;
-    padding-bottom: 40px;
+    /* Increased bottom padding to ensure the last table row isn't hidden behind the fixed footer */
+    padding-bottom: 120px; 
   }
 
   /* Header */
@@ -97,9 +98,10 @@
     background: white;
     margin: 0 12px;
     border-radius: 16px;
-    padding: 14px 14px 0 14px;
+    padding: 14px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.07);
-    overflow: visible; 
+    /* Set back to hidden to keep the corners rounded */
+    overflow: hidden; 
   }
   
   .table-header {
@@ -152,11 +154,9 @@
   
   .col-divider { border-right: 2px solid #e2e8f0; }
   
-  /* NEW: Weekend Styling */
   .weekend-cell { background: #f8fafc; }
   .weekend-cell .daynum { color: #94a3b8; }
   
-  /* Today overrides everything */
   .today-cell { background: #fef9c3 !important; }
   .daynum { font-size: 13px; font-weight: 700; color: #0f172a; }
   
@@ -177,28 +177,36 @@
   .qty-input:focus { border-color: #0369a1; background: #f0f9ff; }
   .qty-input.filled { border-color: #0ea5e9; background: #f0f9ff; font-weight: 700; }
   
-  tfoot {
-    position: sticky;
+  /* NEW: Fixed Footer */
+  .fixed-footer {
+    position: fixed;
     bottom: 0;
-    z-index: 10;
-    box-shadow: 0 -4px 10px rgba(0,0,0,0.04);
+    left: 0;
+    width: 100%;
+    background: white;
+    box-shadow: 0 -4px 15px rgba(0,0,0,0.08);
+    z-index: 200;
+    padding-bottom: env(safe-area-inset-bottom); /* Handles iPhone home bar */
   }
+
+  /* Restyled the totals to fit the new fixed container */
+  .fixed-footer-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
   
   .sub-total { background: #f8fafc; border-top: 2px solid #e2e8f0; }
-  .sub-total td { font-weight: 700; padding: 10px 4px; }
-  .sub-label { color: #64748b; font-size: 10px; text-transform: uppercase; text-align: center; }
+  .sub-total td { font-weight: 700; padding: 10px 4px; text-align: center; }
+  .sub-label { color: #64748b; font-size: 10px; text-transform: uppercase; }
   .sub-val { color: #0369a1; font-size: 14px; }
 
   .grand-total { background: #f0fdf4; border-top: 2px solid #bbf7d0; }
   .grand-total td { font-weight: 800; padding: 12px 6px; }
-  .total-label { font-size: 12px; color: #15803d; text-align: left; padding-left: 10px; }
-  .total-litres { font-size: 14px; color: #0369a1; }
-  .total-cost { font-size: 14px; color: #15803d; text-align: right; padding-right: 10px; }
+  .total-label { font-size: 12px; color: #15803d; text-align: left; padding-left: 14px; }
+  .total-litres { font-size: 14px; color: #0369a1; text-align: center; }
+  .total-cost { font-size: 14px; color: #15803d; text-align: right; padding-right: 14px; }
 
   /* Save toast */
   .toast {
     position: fixed;
-    bottom: 80px; 
+    bottom: 100px; /* Adjusted to sit above the fixed footer */
     left: 50%;
     transform: translateX(-50%) translateY(120px);
     background: #0f172a;
@@ -208,12 +216,10 @@
     font-size: 13px;
     font-weight: 600;
     transition: transform 0.3s ease;
-    z-index: 200;
+    z-index: 300;
     white-space: nowrap;
   }
   .toast.show { transform: translateX(-50%) translateY(0); }
-
-  .hint { text-align: center; color: #94a3b8; font-size: 11px; margin-top: 12px; padding: 0 12px; }
 </style>
 </head>
 <body>
@@ -271,23 +277,24 @@
       </tr>
     </thead>
     <tbody id="tableBody"></tbody>
-    <tfoot>
-      <tr class="sub-total">
-        <td class="sub-label">1-16 Total</td>
-        <td class="sub-val col-divider" id="leftTotal">0.00 L</td>
-        <td class="sub-label">17-31 Total</td>
-        <td class="sub-val" id="rightTotal">0.00 L</td>
-      </tr>
-      <tr class="grand-total">
-        <td colspan="2" class="total-label">GRAND TOTAL</td>
-        <td class="total-litres" id="footLitres">0.00 L</td>
-        <td class="total-cost" id="footCost">₹0.00</td>
-      </tr>
-    </tfoot>
   </table>
 </div>
 
-<p class="hint">Enter litres in decimals — 0.5 for half litre · Data saves automatically 💾</p>
+<div class="fixed-footer">
+  <table class="fixed-footer-table">
+    <tr class="sub-total">
+      <td class="sub-label">1-16 Total</td>
+      <td class="sub-val col-divider" id="leftTotal">0.00 L</td>
+      <td class="sub-label">17-31 Total</td>
+      <td class="sub-val" id="rightTotal">0.00 L</td>
+    </tr>
+    <tr class="grand-total">
+      <td colspan="2" class="total-label">GRAND TOTAL</td>
+      <td class="total-litres" id="footLitres">0.00 L</td>
+      <td class="total-cost" id="footCost">₹0.00</td>
+    </tr>
+  </table>
+</div>
 
 <div class="toast" id="toast">✅ Saved!</div>
 
@@ -442,17 +449,15 @@ function renderTable(shouldScroll = false) {
       updateSummary();
     });
 
-    // NEW: Handle Enter key to dismiss keyboard
     inp.addEventListener('keyup', function(e) {
       if (e.key === 'Enter' || e.keyCode === 13) {
-        this.blur(); // Unfocus the input, closing the keyboard
+        this.blur();
       }
     });
   });
 
   updateSummaryWith(totalL, filledDays, leftL, rightL);
 
-  // NEW: Auto-scroll to today
   if (shouldScroll) {
     setTimeout(() => {
       const todayElement = document.querySelector('.today-cell');
@@ -532,7 +537,7 @@ document.getElementById('priceInput').addEventListener('input', function() {
   renderTable(false);
 });
 
-// Init (Pass true to trigger auto-scroll only on initial load)
+// Init
 renderTable(true);
 </script>
 </body>
