@@ -97,9 +97,9 @@
     background: white;
     margin: 0 12px;
     border-radius: 16px;
-    padding: 14px 14px 0 14px; /* Removed bottom padding so sticky footer flushes nicely */
+    padding: 14px 14px 0 14px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.07);
-    overflow: visible; /* Changed from hidden to allow sticky to work smoothly */
+    overflow: visible; 
   }
   
   .table-header {
@@ -151,17 +151,22 @@
   }
   
   .col-divider { border-right: 2px solid #e2e8f0; }
-  .today-cell { background: #fef9c3; }
+  
+  /* NEW: Weekend Styling */
+  .weekend-cell { background: #f8fafc; }
+  .weekend-cell .daynum { color: #94a3b8; }
+  
+  /* Today overrides everything */
+  .today-cell { background: #fef9c3 !important; }
   .daynum { font-size: 13px; font-weight: 700; color: #0f172a; }
   
-  /* UPDATED: Increased Touch Targets & Anti-Zoom */
   .qty-input {
     width: 100%;
     max-width: 60px;
-    padding: 10px 4px; /* Increased padding */
+    padding: 10px 4px;
     border: 1.5px solid #e2e8f0;
     border-radius: 8px;
-    font-size: 16px; /* 16px prevents iOS from auto-zooming */
+    font-size: 16px;
     color: #0c4a6e;
     background: white;
     outline: none;
@@ -172,7 +177,6 @@
   .qty-input:focus { border-color: #0369a1; background: #f0f9ff; }
   .qty-input.filled { border-color: #0ea5e9; background: #f0f9ff; font-weight: 700; }
   
-  /* UPDATED: Sticky Footer */
   tfoot {
     position: sticky;
     bottom: 0;
@@ -194,7 +198,7 @@
   /* Save toast */
   .toast {
     position: fixed;
-    bottom: 80px; /* Moved up slightly to not hide behind sticky footer */
+    bottom: 80px; 
     left: 50%;
     transform: translateX(-50%) translateY(120px);
     background: #0f172a;
@@ -329,6 +333,12 @@ function saveData(y, m, data) {
 
 function getDaysInMonth(m, y) { return new Date(y, m + 1, 0).getDate(); }
 
+// Helper to check if a date is a weekend
+function isWeekend(day, month, year) {
+  const d = new Date(year, month, day).getDay();
+  return d === 0 || d === 6; // 0 = Sunday, 6 = Saturday
+}
+
 let saveTimer = null;
 function showToast(msg = '✅ Saved!') {
   const t = document.getElementById('toast');
@@ -338,7 +348,7 @@ function showToast(msg = '✅ Saved!') {
   saveTimer = setTimeout(() => t.classList.remove('show'), 1500);
 }
 
-function renderTable() {
+function renderTable(shouldScroll = false) {
   const days = getDaysInMonth(curMonth, curYear);
   const data = loadData(curYear, curMonth);
 
@@ -369,11 +379,12 @@ function renderTable() {
       }
       
       const isTodayLeft = leftDate === today.getDate() && curMonth === today.getMonth() && curYear === today.getFullYear();
+      const leftIsWeekend = isWeekend(leftDate, curMonth, curYear);
+      let leftClass = isTodayLeft ? 'today-cell' : (leftIsWeekend ? 'weekend-cell' : '');
       
-      // UPDATED: Added inputmode="decimal"
       leftHtml = `
-        <td class="daynum ${isTodayLeft ? 'today-cell' : ''}">${leftDate}</td>
-        <td class="col-divider ${isTodayLeft ? 'today-cell' : ''}">
+        <td class="daynum ${leftClass}" id="cell-${leftDate}">${leftDate}</td>
+        <td class="col-divider ${leftClass}">
           <input type="number" inputmode="decimal" class="qty-input${leftHasQty ? ' filled' : ''}" min="0" step="0.25"
             placeholder="—" value="${leftHasQty ? leftQty : ''}" data-day="${leftDate}"/>
         </td>
@@ -396,11 +407,12 @@ function renderTable() {
       }
       
       const isTodayRight = rightDate === today.getDate() && curMonth === today.getMonth() && curYear === today.getFullYear();
+      const rightIsWeekend = isWeekend(rightDate, curMonth, curYear);
+      let rightClass = isTodayRight ? 'today-cell' : (rightIsWeekend ? 'weekend-cell' : '');
 
-      // UPDATED: Added inputmode="decimal"
       rightHtml = `
-        <td class="daynum ${isTodayRight ? 'today-cell' : ''}">${rightDate}</td>
-        <td class="${isTodayRight ? 'today-cell' : ''}">
+        <td class="daynum ${rightClass}" id="cell-${rightDate}">${rightDate}</td>
+        <td class="${rightClass}">
           <input type="number" inputmode="decimal" class="qty-input${rightHasQty ? ' filled' : ''}" min="0" step="0.25"
             placeholder="—" value="${rightHasQty ? rightQty : ''}" data-day="${rightDate}"/>
         </td>
@@ -413,6 +425,7 @@ function renderTable() {
     tbody.appendChild(tr);
   }
 
+  // Bind input events
   tbody.querySelectorAll('.qty-input').forEach(inp => {
     inp.addEventListener('input', function() {
       const day = parseInt(this.dataset.day);
@@ -428,9 +441,26 @@ function renderTable() {
       saveData(curYear, curMonth, data);
       updateSummary();
     });
+
+    // NEW: Handle Enter key to dismiss keyboard
+    inp.addEventListener('keyup', function(e) {
+      if (e.key === 'Enter' || e.keyCode === 13) {
+        this.blur(); // Unfocus the input, closing the keyboard
+      }
+    });
   });
 
   updateSummaryWith(totalL, filledDays, leftL, rightL);
+
+  // NEW: Auto-scroll to today
+  if (shouldScroll) {
+    setTimeout(() => {
+      const todayElement = document.querySelector('.today-cell');
+      if (todayElement) {
+        todayElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 100);
+  }
 }
 
 function updateSummary() {
@@ -470,25 +500,21 @@ function updateSummaryWith(totalL, filledDays, leftL, rightL) {
   document.getElementById('footCost').textContent = '₹' + totalCost.toFixed(2);
 }
 
-// Anti-Lag Clear Data Event (Double Tap to confirm)
+// Anti-Lag Clear Data Event
 let confirmTimeout;
 document.getElementById('clearBtn').addEventListener('click', function() {
   if (this.classList.contains('confirming')) {
-    // If already confirming, delete the data
     localStorage.removeItem(storageKey(curYear, curMonth));
-    renderTable(); 
+    renderTable(false); 
     showToast('🗑️ Month Cleared!');
     
-    // Reset button
     this.textContent = 'Clear Month';
     this.classList.remove('confirming');
     clearTimeout(confirmTimeout);
   } else {
-    // First tap: ask for confirmation
     this.textContent = 'Sure? Tap again';
     this.classList.add('confirming');
     
-    // Reset back to normal if they don't tap again within 3 seconds
     confirmTimeout = setTimeout(() => {
       this.textContent = 'Clear Month';
       this.classList.remove('confirming');
@@ -497,17 +523,17 @@ document.getElementById('clearBtn').addEventListener('click', function() {
 });
 
 // Events
-monthSel.addEventListener('change', () => { curMonth = parseInt(monthSel.value); renderTable(); });
-yearSel.addEventListener('change', () => { curYear = parseInt(yearSel.value); renderTable(); });
+monthSel.addEventListener('change', () => { curMonth = parseInt(monthSel.value); renderTable(false); });
+yearSel.addEventListener('change', () => { curYear = parseInt(yearSel.value); renderTable(false); });
 
 // Save Price when it changes
 document.getElementById('priceInput').addEventListener('input', function() {
   localStorage.setItem('milk_price', this.value);
-  renderTable();
+  renderTable(false);
 });
 
-// Init
-renderTable();
+// Init (Pass true to trigger auto-scroll only on initial load)
+renderTable(true);
 </script>
 </body>
 </html>
