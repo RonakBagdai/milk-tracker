@@ -106,53 +106,52 @@
     font-weight: 700;
     color: #0369a1;
     margin-bottom: 10px;
+    text-align: center;
   }
-  table { width: 100%; border-collapse: collapse; }
+  table { width: 100%; border-collapse: collapse; table-layout: fixed; }
   thead tr { background: #f0f9ff; }
   th {
-    padding: 8px 6px;
+    padding: 8px 4px;
     font-size: 10px;
     font-weight: 700;
     color: #0369a1;
     text-transform: uppercase;
     letter-spacing: 0.4px;
-    text-align: left;
+    text-align: center;
   }
-  td { padding: 5px 6px; vertical-align: middle; border-bottom: 1px solid #f1f5f9; }
-  tr.today { background: #fef9c3; }
-  tr.weekend td.dayname { color: #9333ea; }
-  .dayname { font-size: 12px; font-weight: 600; color: #475569; }
+  td { 
+    padding: 6px 4px; 
+    vertical-align: middle; 
+    border-bottom: 1px solid #f1f5f9; 
+    text-align: center;
+  }
+  
+  .col-divider { border-right: 2px solid #e2e8f0; }
+  .today-cell { background: #fef9c3; }
   .daynum { font-size: 13px; font-weight: 700; color: #0f172a; }
-  .today-badge {
-    font-size: 9px;
-    background: #fbbf24;
-    color: #78350f;
-    border-radius: 4px;
-    padding: 1px 4px;
-    margin-left: 4px;
-    font-weight: 700;
-  }
+  
   .qty-input {
-    width: 72px;
-    padding: 6px 8px;
+    width: 100%;
+    max-width: 60px;
+    padding: 6px 4px;
     border: 1.5px solid #e2e8f0;
     border-radius: 8px;
     font-size: 14px;
     color: #0c4a6e;
     background: white;
     outline: none;
+    text-align: center;
     -webkit-appearance: none;
     appearance: none;
   }
   .qty-input:focus { border-color: #0369a1; background: #f0f9ff; }
   .qty-input.filled { border-color: #0ea5e9; background: #f0f9ff; font-weight: 700; }
-  .cost-cell { font-size: 13px; font-weight: 600; color: #15803d; }
-  .cost-cell.empty { color: #cbd5e1; }
+  
   tfoot tr { background: #f0fdf4; border-top: 2px solid #bbf7d0; }
-  tfoot td { font-weight: 800; padding: 9px 6px; }
-  .total-label { font-size: 12px; color: #15803d; }
+  tfoot td { font-weight: 800; padding: 12px 6px; }
+  .total-label { font-size: 12px; color: #15803d; text-align: left; }
   .total-litres { font-size: 14px; color: #0369a1; }
-  .total-cost { font-size: 14px; color: #15803d; }
+  .total-cost { font-size: 14px; color: #15803d; text-align: right; }
 
   /* Save toast */
   .toast {
@@ -173,19 +172,6 @@
   .toast.show { transform: translateX(-50%) translateY(0); }
 
   .hint { text-align: center; color: #94a3b8; font-size: 11px; margin-top: 12px; padding: 0 12px; }
-
-  /* Install banner */
-  .install-banner {
-    background: #fef3c7;
-    border: 1px solid #fcd34d;
-    border-radius: 12px;
-    margin: 0 12px 12px;
-    padding: 10px 14px;
-    font-size: 12px;
-    color: #92400e;
-    display: none;
-  }
-  .install-banner strong { display: block; font-size: 13px; margin-bottom: 2px; }
 </style>
 </head>
 <body>
@@ -193,11 +179,6 @@
 <div class="header">
   <h1>🥛 Milk Tracker</h1>
   <p>Daily milk log &amp; monthly cost calculator</p>
-</div>
-
-<div class="install-banner" id="installBanner">
-  <strong>📱 Add to Home Screen</strong>
-  Tap Share → "Add to Home Screen" to use like an app!
 </div>
 
 <div class="controls">
@@ -238,10 +219,10 @@
   <table>
     <thead>
       <tr>
-        <th>Day</th>
+        <th>Date</th>
+        <th class="col-divider">Litres</th>
         <th>Date</th>
         <th>Litres</th>
-        <th>Cost (₹)</th>
       </tr>
     </thead>
     <tbody id="tableBody"></tbody>
@@ -261,7 +242,6 @@
 
 <script>
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-const DAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 
 const today = new Date();
 let curMonth = today.getMonth();
@@ -310,35 +290,62 @@ function renderTable() {
   const data = loadData(curYear, curMonth);
   price = parseFloat(document.getElementById('priceInput').value) || 0;
 
-  document.getElementById('tableTitle').textContent = `${MONTHS[curMonth]} ${curYear} — Daily Entry`;
+  document.getElementById('tableTitle').textContent = `${MONTHS[curMonth]} ${curYear}`;
 
   const tbody = document.getElementById('tableBody');
   tbody.innerHTML = '';
 
   let totalL = 0, filledDays = 0;
 
-  for (let d = 1; d <= days; d++) {
-    const dateObj = new Date(curYear, curMonth, d);
-    const dayName = DAYS[dateObj.getDay()];
-    const isToday = d === today.getDate() && curMonth === today.getMonth() && curYear === today.getFullYear();
-    const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
-    const qty = data[d];
-    const hasQty = qty !== undefined && qty !== '' && !isNaN(qty);
-    const cost = hasQty ? (parseFloat(qty) * price).toFixed(2) : null;
-
-    if (hasQty) { totalL += parseFloat(qty); filledDays++; }
-
+  // Loop exactly 16 times for the left column (1-16)
+  for (let i = 1; i <= 16; i++) {
     const tr = document.createElement('tr');
-    if (isToday) tr.classList.add('today');
-    if (isWeekend) tr.classList.add('weekend');
+    
+    // Calculate dates for left and right columns
+    const leftDate = i;
+    const rightDate = i + 16;
 
-    tr.innerHTML = `
-      <td class="dayname">${dayName}${isToday ? '<span class="today-badge">Today</span>' : ''}</td>
-      <td class="daynum">${d}</td>
-      <td><input type="number" class="qty-input${hasQty ? ' filled' : ''}" min="0" step="0.25"
-        placeholder="0" value="${hasQty ? qty : ''}" data-day="${d}"/></td>
-      <td class="${cost ? 'cost-cell' : 'cost-cell empty'}" id="cost-${d}">${cost ? '₹' + cost : '—'}</td>
-    `;
+    // Build Left Side (1-16)
+    let leftHtml = '';
+    if (leftDate <= days) {
+      const leftQty = data[leftDate];
+      const leftHasQty = leftQty !== undefined && leftQty !== '' && !isNaN(leftQty);
+      if (leftHasQty) { totalL += parseFloat(leftQty); filledDays++; }
+      
+      const isTodayLeft = leftDate === today.getDate() && curMonth === today.getMonth() && curYear === today.getFullYear();
+      
+      leftHtml = `
+        <td class="daynum ${isTodayLeft ? 'today-cell' : ''}">${leftDate}</td>
+        <td class="col-divider ${isTodayLeft ? 'today-cell' : ''}">
+          <input type="number" class="qty-input${leftHasQty ? ' filled' : ''}" min="0" step="0.25"
+            placeholder="—" value="${leftHasQty ? leftQty : ''}" data-day="${leftDate}"/>
+        </td>
+      `;
+    } else {
+      leftHtml = `<td class="daynum"></td><td class="col-divider"></td>`;
+    }
+
+    // Build Right Side (17-31)
+    let rightHtml = '';
+    if (rightDate <= days) {
+      const rightQty = data[rightDate];
+      const rightHasQty = rightQty !== undefined && rightQty !== '' && !isNaN(rightQty);
+      if (rightHasQty) { totalL += parseFloat(rightQty); filledDays++; }
+      
+      const isTodayRight = rightDate === today.getDate() && curMonth === today.getMonth() && curYear === today.getFullYear();
+
+      rightHtml = `
+        <td class="daynum ${isTodayRight ? 'today-cell' : ''}">${rightDate}</td>
+        <td class="${isTodayRight ? 'today-cell' : ''}">
+          <input type="number" class="qty-input${rightHasQty ? ' filled' : ''}" min="0" step="0.25"
+            placeholder="—" value="${rightHasQty ? rightQty : ''}" data-day="${rightDate}"/>
+        </td>
+      `;
+    } else {
+      rightHtml = `<td class="daynum"></td><td></td>`;
+    }
+
+    tr.innerHTML = leftHtml + rightHtml;
     tbody.appendChild(tr);
   }
 
@@ -351,14 +358,9 @@ function renderTable() {
       if (val === '' || isNaN(parseFloat(val))) {
         delete data[day];
         this.classList.remove('filled');
-        document.getElementById(`cost-${day}`).textContent = '—';
-        document.getElementById(`cost-${day}`).className = 'cost-cell empty';
       } else {
         data[day] = parseFloat(val);
         this.classList.add('filled');
-        const c = (parseFloat(val) * price).toFixed(2);
-        document.getElementById(`cost-${day}`).textContent = '₹' + c;
-        document.getElementById(`cost-${day}`).className = 'cost-cell';
       }
       saveData(curYear, curMonth, data);
       updateSummary();
@@ -383,25 +385,20 @@ function updateSummaryWith(totalL, filledDays) {
   price = parseFloat(document.getElementById('priceInput').value) || 0;
   const totalCost = totalL * price;
   const avg = filledDays > 0 ? (totalL / filledDays).toFixed(2) : '—';
+  
   document.getElementById('totalLitres').textContent = totalL.toFixed(2) + ' L';
   document.getElementById('totalCost').textContent = '₹' + totalCost.toFixed(2);
   document.getElementById('avgDay').textContent = avg === '—' ? '— L' : avg + ' L';
+  
   document.getElementById('footLitres').textContent = totalL.toFixed(2) + ' L';
   document.getElementById('footCost').textContent = '₹' + totalCost.toFixed(2);
-  document.getElementById('totalLabel').textContent = `TOTAL (${filledDays} days)`;
+  document.getElementById('totalLabel').textContent = `TOTAL`;
 }
 
 // Events
 monthSel.addEventListener('change', () => { curMonth = parseInt(monthSel.value); renderTable(); });
 yearSel.addEventListener('change', () => { curYear = parseInt(yearSel.value); renderTable(); });
 document.getElementById('priceInput').addEventListener('input', () => renderTable());
-
-// Show install banner on iOS
-const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
-if (isIOS && !isStandalone) {
-  document.getElementById('installBanner').style.display = 'block';
-}
 
 // Init
 renderTable();
